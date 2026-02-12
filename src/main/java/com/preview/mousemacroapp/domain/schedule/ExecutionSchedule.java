@@ -1,4 +1,6 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.schedule;
+
+import com.preview.mousemacroapp.domain.timing.DelayPolicy;
 
 import java.time.LocalTime;
 import java.util.Objects;
@@ -46,7 +48,7 @@ public sealed interface ExecutionSchedule permits ExecutionSchedule.Always, Exec
      * @param timeRange 실행 허용 시간 범위
      * @since 0.6
      */
-    record Range(LocalTimeRange timeRange) implements ExecutionSchedule {
+    record Range(DelayPolicy.LocalTimeRange timeRange) implements ExecutionSchedule {
 
         public Range {
             Objects.requireNonNull(timeRange, "timeRange");

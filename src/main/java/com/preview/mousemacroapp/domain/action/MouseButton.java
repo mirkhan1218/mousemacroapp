@@ -1,4 +1,4 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.action;
 
 /**
  * 마우스 버튼 종류를 정의한다.

@@ -1,4 +1,6 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.point;
+
+import com.preview.mousemacroapp.domain.action.policy.ClickPositionPolicy;
 
 import java.util.Objects;
 

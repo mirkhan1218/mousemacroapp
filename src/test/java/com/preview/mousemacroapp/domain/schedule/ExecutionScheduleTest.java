@@ -1,5 +1,6 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.schedule;
 
+import com.preview.mousemacroapp.domain.timing.DelayPolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -8,22 +9,22 @@ import java.time.LocalTime;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * ExecutionSchedule 실행 스케줄 정책 검증 테스트.
+ * ExecutionSchedule(실행 스케줄) 정책 검증 테스트.
  *
  * <p><b>테스트 대상</b></p>
- * - ExecutionSchedule.Always
- * - ExecutionSchedule.Range
+ * - ExecutionSchedule.Always / ExecutionSchedule.Range
  *
  * <p><b>검증 목적</b></p>
- * - Always 정책은 항상 실행을 허용해야 한다.
- * - Range 정책은 LocalTimeRange.contains 결과를 정확히 위임해야 한다.
+ * - Always는 어떤 시각이든 실행 가능해야 한다.
+ * - Range는 LocalTimeRange.contains 결과에 정확히 위임해야 한다.
  *
  * <p><b>검증 범위</b></p>
- * - 모든 시간에 대한 Always 동작
- * - 범위 내/외 시간에 대한 Range 동작
+ * - Always.isAllowed(LocalTime) == true
+ * - Range.isAllowed(LocalTime) 위임 규칙
+ * - 생성 제약(null range)
  *
  * <p><b>회귀 방지 이유</b></p>
- * - 스케줄 판단 오류는 매크로 실행 조건을 잘못 제어하게 된다.
+ * - 스케줄 허용 판단이 흔들리면 사용자가 설정한 시간 정책을 신뢰할 수 없게 된다.
  *
  * @since 0.6
  */
@@ -66,7 +67,7 @@ class ExecutionScheduleTest {
     @Test
     @DisplayName("Range: timeRange.contains 결과를 따른다")
     void range_shouldDelegateToTimeRange() {
-        LocalTimeRange range = new LocalTimeRange(LocalTime.of(9, 0), LocalTime.of(18, 0));
+        DelayPolicy.LocalTimeRange range = new DelayPolicy.LocalTimeRange(LocalTime.of(9, 0), LocalTime.of(18, 0));
         ExecutionSchedule schedule = new ExecutionSchedule.Range(range);
 
         assertTrue(schedule.isAllowed(LocalTime.of(9, 0)));

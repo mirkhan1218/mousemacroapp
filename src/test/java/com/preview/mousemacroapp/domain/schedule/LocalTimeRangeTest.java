@@ -1,5 +1,6 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.schedule;
 
+import com.preview.mousemacroapp.domain.timing.DelayPolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -11,20 +12,20 @@ import static org.junit.jupiter.api.Assertions.*;
  * LocalTimeRange(시간 범위) 정책 검증 테스트.
  *
  * <p><b>테스트 대상</b></p>
- * - LocalTimeRange
+ * - LocalTimeRange.contains(LocalTime)
  *
  * <p><b>검증 목적</b></p>
  * - 시작 포함(inclusive), 종료 제외(exclusive) 규칙을 고정한다.
- * - 자정 넘김 범위 계산을 정확히 보장한다.
+ * - 자정 넘김 범위(예: 23:00~02:00) 판단 로직을 고정한다.
  *
  * <p><b>검증 범위</b></p>
- * - start == end 예외
- * - 자정 미통과 범위 포함/제외
- * - 자정 통과 범위 포함/제외
- * - 경계값: 00:00~23:59 포함/제외
+ * - 일반 범위(시작 < 종료)
+ * - 자정 넘김 범위(시작 > 종료)
+ * - 경계값(시작 시각, 종료 시각)
+ * - 생성 제약(null, start==end)
  *
  * <p><b>회귀 방지 이유</b></p>
- * - 시간 조건 판단 오류는 실행 스케줄 제어를 붕괴시킬 수 있다.
+ * - 시간 범위 판단 오류는 스케줄 실행 허용/차단이 뒤바뀌는 심각한 오동작을 만든다.
  *
  * @since 0.6
  */
@@ -44,7 +45,7 @@ class LocalTimeRangeTest {
     @DisplayName("생성 제약: start와 end가 같으면 예외")
     void startEqualsEnd_shouldThrow() {
         LocalTime t = LocalTime.of(9, 0);
-        assertThrows(IllegalArgumentException.class, () -> new LocalTimeRange(t, t));
+        assertThrows(IllegalArgumentException.class, () -> new DelayPolicy.LocalTimeRange(t, t));
     }
 
     /*
@@ -62,7 +63,7 @@ class LocalTimeRangeTest {
     @Test
     @DisplayName("자정 미통과 범위: 시작 포함, 종료 제외")
     void normalRange_inclusiveExclusive() {
-        LocalTimeRange range = new LocalTimeRange(LocalTime.of(9, 0), LocalTime.of(18, 0));
+        DelayPolicy.LocalTimeRange range = new DelayPolicy.LocalTimeRange(LocalTime.of(9, 0), LocalTime.of(18, 0));
 
         assertTrue(range.contains(LocalTime.of(9, 0)));   // start inclusive
         assertTrue(range.contains(LocalTime.of(17, 59)));
@@ -89,7 +90,7 @@ class LocalTimeRangeTest {
     @Test
     @DisplayName("자정 통과 범위: 23:00~02:00 포함 규칙 검증")
     void overMidnightRange_containsLogic() {
-        LocalTimeRange range = new LocalTimeRange(LocalTime.of(23, 0), LocalTime.of(2, 0));
+        DelayPolicy.LocalTimeRange range = new DelayPolicy.LocalTimeRange(LocalTime.of(23, 0), LocalTime.of(2, 0));
 
         assertTrue(range.isOverMidnight());
 
@@ -123,7 +124,7 @@ class LocalTimeRangeTest {
     @Test
     @DisplayName("경계값: 00:00~23:59는 23:59를 제외한다")
     void almostFullDayRange_inclusiveExclusive() {
-        LocalTimeRange range = new LocalTimeRange(LocalTime.of(0, 0), LocalTime.of(23, 59));
+        DelayPolicy.LocalTimeRange range = new DelayPolicy.LocalTimeRange(LocalTime.of(0, 0), LocalTime.of(23, 59));
 
         assertTrue(range.contains(LocalTime.of(0, 0)));
         assertTrue(range.contains(LocalTime.of(23, 58)));

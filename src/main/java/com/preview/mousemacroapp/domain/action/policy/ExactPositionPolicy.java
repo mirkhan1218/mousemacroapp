@@ -1,4 +1,6 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.action.policy;
+
+import com.preview.mousemacroapp.domain.point.ScreenPoint;
 
 import java.util.Objects;
 import java.util.Random;

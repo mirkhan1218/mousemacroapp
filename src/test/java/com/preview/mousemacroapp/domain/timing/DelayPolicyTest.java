@@ -1,4 +1,4 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.timing;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

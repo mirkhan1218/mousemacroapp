@@ -1,4 +1,4 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.point;
 
 /**
  * 화면 상의 좌표를 표현하는 값 객체이다.

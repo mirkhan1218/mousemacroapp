@@ -1,5 +1,6 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.action.policy;
 
+import com.preview.mousemacroapp.domain.point.ScreenPoint;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -11,21 +12,21 @@ import static org.junit.jupiter.api.Assertions.*;
  * 클릭 위치 결정 정책(Where) 검증 테스트.
  *
  * <p><b>테스트 대상</b></p>
- * - ClickPositionPolicy 및 하위 구현(Exact, RandomArea)
+ * - ClickPositionPolicy 및 구현체(ExactPositionPolicy, RandomAreaPositionPolicy)
  *
  * <p><b>검증 목적</b></p>
- * - 랜덤 영역 계산이 지정 범위를 벗어나지 않음을 보장한다.
+ * - 탐지 방지(RandomArea) 정책이 지정 범위를 벗어나지 않음을 보장한다.
  * - 음수 영역 입력을 생성 시점에 차단한다.
  * - 정확 좌표(Exact) 정책이 항상 기준 좌표를 반환함을 고정한다.
  *
  * <p><b>검증 범위</b></p>
- * - 음수 영역 예외
- * - 0 영역 동작(기준 좌표 유지)
- * - 일반 영역 범위 보장
- * - 극소 영역(±1) 범위 보장
+ * - 생성 제약(halfWidth/halfHeight 음수)
+ * - zero area(0,0) == 기준 좌표 반환
+ * - random area 결과 범위 유지
+ * - null base/random 방어
  *
  * <p><b>회귀 방지 이유</b></p>
- * - 잘못된 좌표 계산은 화면 외 클릭 또는 의도치 않은 동작을 유발할 수 있다.
+ * - 좌표 정책 오류는 실제 클릭 좌표가 흔들려 오동작/탐지 위험을 증가시킨다.
  *
  * @since 0.3
  */

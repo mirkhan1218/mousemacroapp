@@ -1,4 +1,4 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.status;
 
 /**
  * 프로그램의 실행 상태를 정의한다.

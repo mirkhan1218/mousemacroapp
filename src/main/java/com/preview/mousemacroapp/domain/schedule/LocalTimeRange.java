@@ -1,4 +1,4 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.schedule;
 
 import java.time.LocalTime;
 import java.util.Objects;

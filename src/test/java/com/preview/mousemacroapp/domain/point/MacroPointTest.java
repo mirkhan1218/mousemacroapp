@@ -1,5 +1,6 @@
-package com.preview.mousemacroapp.domain;
+package com.preview.mousemacroapp.domain.point;
 
+import com.preview.mousemacroapp.domain.action.policy.ExactPositionPolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -9,17 +10,18 @@ import static org.junit.jupiter.api.Assertions.*;
  * MacroPoint 생성 유효성 검증 테스트.
  *
  * <p><b>테스트 대상</b></p>
- * - MacroPoint 레코드(또는 클래스) 생성자
+ * - MacroPoint 생성자 제약
  *
  * <p><b>검증 목적</b></p>
- * - name/base/positionPolicy 필수 조건을 생성 시점에 강제한다.
+ * - UI/설정 로딩 입력이 도메인을 오염시키지 않도록 생성 시점 검증을 고정한다.
  *
  * <p><b>검증 범위</b></p>
- * - null 값 입력
- * - blank name 입력
+ * - name/base/policy null 방어
+ * - name blank 방어
+ * - 정상 입력 생성 성공
  *
  * <p><b>회귀 방지 이유</b></p>
- * - UI 또는 설정 로딩 과정에서 잘못된 값이 도메인에 침투하는 것을 차단한다.
+ * - 잘못된 포인트 정의가 누적되면 실행 단계에서 예측 불가능한 동작을 만든다.
  *
  * @since 0.3
  */
