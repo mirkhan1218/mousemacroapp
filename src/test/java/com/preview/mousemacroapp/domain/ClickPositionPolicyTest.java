@@ -8,12 +8,39 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 클릭 위치 결정 정책(Where) 테스트.
+ * 클릭 위치 결정 정책(Where) 검증 테스트.
+ *
+ * <p><b>테스트 대상</b></p>
+ * - ClickPositionPolicy 및 하위 구현(Exact, RandomArea)
+ *
+ * <p><b>검증 목적</b></p>
+ * - 랜덤 영역 계산이 지정 범위를 벗어나지 않음을 보장한다.
+ * - 음수 영역 입력을 생성 시점에 차단한다.
+ * - 정확 좌표(Exact) 정책이 항상 기준 좌표를 반환함을 고정한다.
+ *
+ * <p><b>검증 범위</b></p>
+ * - 음수 영역 예외
+ * - 0 영역 동작(기준 좌표 유지)
+ * - 일반 영역 범위 보장
+ * - 극소 영역(±1) 범위 보장
+ *
+ * <p><b>회귀 방지 이유</b></p>
+ * - 잘못된 좌표 계산은 화면 외 클릭 또는 의도치 않은 동작을 유발할 수 있다.
  *
  * @since 0.3
  */
 class ClickPositionPolicyTest {
 
+    /*
+     * 시나리오: 음수 영역 값은 생성 시점에 차단해야 한다
+     *
+     * 입력(Given):
+     * - new RandomAreaPositionPolicy(-1, 0)
+     * - new RandomAreaPositionPolicy(0, -5)
+     *
+     * 예상 결과(Then):
+     * - IllegalArgumentException 발생
+     */
     @Test
     @DisplayName("영역 값이 음수이면 예외 발생")
     void negativeArea_shouldThrow() {
@@ -24,6 +51,17 @@ class ClickPositionPolicyTest {
                 () -> new RandomAreaPositionPolicy(0, -5));
     }
 
+    /*
+     * 시나리오: 영역 값이 0이면 기준 좌표 그대로 반환해야 한다
+     *
+     * 입력(Given):
+     * - base = (100, 200)
+     * - policy = RandomAreaPositionPolicy(0, 0)
+     * - random = new Random(1)
+     *
+     * 예상 결과(Then):
+     * - resolve(base, random) == base
+     */
     @Test
     @DisplayName("영역이 0이면 항상 기준 좌표 반환")
     void zeroArea_shouldReturnBase() {
@@ -37,6 +75,21 @@ class ClickPositionPolicyTest {
         assertEquals(base, resolved);
     }
 
+    /*
+     * 시나리오: 랜덤 영역 좌표는 지정 범위를 벗어나지 않아야 한다
+     *
+     * 입력(Given):
+     * - base = (500, 500)
+     * - halfWidth = 10  → X 허용 범위: [490..510]
+     * - halfHeight = 20 → Y 허용 범위: [480..520]
+     * - policy = RandomAreaPositionPolicy(10, 20)
+     * - random = new Random(123)
+     * - 반복 횟수 = 1000
+     *
+     * 예상 결과(Then):
+     * - 모든 반복에서 resolved.x ∈ [490..510]
+     * - 모든 반복에서 resolved.y ∈ [480..520]
+     */
     @Test
     @DisplayName("랜덤 영역이 지정 범위를 벗어나지 않아야 한다")
     void randomArea_shouldStayWithinRange() {
@@ -58,6 +111,52 @@ class ClickPositionPolicyTest {
         }
     }
 
+    /*
+     * 시나리오: 극소 랜덤 영역(±1)에서도 범위를 벗어나지 않아야 한다
+     *
+     * 입력(Given):
+     * - base = (0, 0)
+     * - halfWidth = 1  → X 허용 범위: [-1..1]
+     * - halfHeight = 1 → Y 허용 범위: [-1..1]
+     * - policy = RandomAreaPositionPolicy(1, 1)
+     * - random = new Random(7)
+     * - 반복 횟수 = 1000
+     *
+     * 예상 결과(Then):
+     * - 모든 반복에서 resolved.x ∈ [-1..1]
+     * - 모든 반복에서 resolved.y ∈ [-1..1]
+     */
+    @Test
+    @DisplayName("경계값: halfWidth=1, halfHeight=1에서도 범위를 벗어나지 않는다")
+    void minimalArea_shouldStayWithinRange() {
+        ScreenPoint base = new ScreenPoint(0, 0);
+        int halfWidth = 1;
+        int halfHeight = 1;
+
+        ClickPositionPolicy policy = new RandomAreaPositionPolicy(halfWidth, halfHeight);
+        Random random = new Random(7);
+
+        for (int i = 0; i < 1000; i++) {
+            ScreenPoint resolved = policy.resolve(base, random);
+
+            assertTrue(resolved.x() >= -1);
+            assertTrue(resolved.x() <= 1);
+            assertTrue(resolved.y() >= -1);
+            assertTrue(resolved.y() <= 1);
+        }
+    }
+
+    /*
+     * 시나리오: 정확 좌표 정책은 항상 기준 좌표를 반환해야 한다
+     *
+     * 입력(Given):
+     * - base = (7, 9)
+     * - policy = new ExactPositionPolicy()
+     * - random = new Random(999)
+     *
+     * 예상 결과(Then):
+     * - resolve(base, random) == base
+     */
     @Test
     @DisplayName("정확 좌표 정책은 항상 기준 좌표를 반환")
     void exactPolicy_shouldReturnBase() {
