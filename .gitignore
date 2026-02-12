@@ -1,0 +1,54 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlin/
+
+### IntelliJ IDEA ###
+.idea/
+*.iml
+*.ipr
+*.iws
+
+### Java ###
+*.class
+*.log
+hs_err_pid*
+replay_pid*
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### OS (Windows / macOS) ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### Logs / Temp ###
+logs/
+*.tmp
+*.swp
+
+### Distribution / Packaging ###
+dist/
+target/
+
+### Local environment files ###
+.env
+.env.local
