@@ -9,34 +9,49 @@ import com.preview.mousemacroapp.domain.point.ScreenPoint;
 import com.preview.mousemacroapp.domain.schedule.ExecutionSchedule;
 import com.preview.mousemacroapp.domain.status.MacroStatus;
 import com.preview.mousemacroapp.domain.timing.DelayPolicy;
+import com.preview.mousemacroapp.service.CaptureResult;
 import com.preview.mousemacroapp.service.MacroRequest;
 import com.preview.mousemacroapp.service.MacroService;
+import com.preview.mousemacroapp.service.MouseClickCaptor;
+import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 
-import java.util.Objects;
+import java.time.Duration;
 import java.util.Random;
 
 /**
  * UI 이벤트를 Service 호출로 변환하는 컨트롤러.
  *
- * <p>
- * UI에서 발생한 이벤트를 받아 {@link MacroService}의 단일 API로 위임한다.
- * UI 계층이 도메인/서비스 내부 제약(상태 전이 예외 등)을 직접 다루지 않도록,
- * 예외 메시지 처리와 상태 갱신을 이 계층에서 정리한다.
- * </p>
+ * <p>UI에서 발생한 이벤트를 받아 {@link MacroService}의 단일 API로 위임한다.</p>
+ *
+ * <p><b>책임</b></p>
+ * <ul>
+ *   <li>UI 계층에서 예외를 사용자 메시지로 정리한다.</li>
+ *   <li>상태 표시/버튼 활성화 등 화면 갱신 규칙을 일원화한다.</li>
+ *   <li>좌표 캡처 결과를 UI에 반영하고, Start 요청에 사용한다.</li>
+ * </ul>
  */
 public final class MacroController {
 
     private final MacroService macroService;
+    private final MouseClickCaptor clickCaptor;
 
-    public MacroController(MacroService macroService) {
-        this.macroService = Objects.requireNonNull(macroService, "macroService");
+    /**
+     * 마지막으로 확정된 좌표(없으면 null).
+     */
+    private volatile ScreenPoint selectedPoint;
+
+    public MacroController(MacroService macroService, MouseClickCaptor clickCaptor) {
+        this.macroService = macroService;
+        this.clickCaptor = clickCaptor;
     }
 
-    public void start(Label statusLabel, Label messageLabel, Button pauseResumeButton) {
+    public void start(Label statusLabel, Label messageLabel, Button pauseResumeButton, Label pointLabel) {
         try {
-            // 역할: 최소 실행 요청을 생성한다. (UI 입력폼 도입 전 임시 기본값)
+            DebugLog.log("UI_BTN", () -> "click Start");
+
+            // 역할: 최소 실행 요청을 생성한다. (UI 입력폼 도입 전 기본값 + 선택 좌표 반영)
             MacroRequest request = defaultRequest();
 
             macroService.start(request);
@@ -44,7 +59,6 @@ public final class MacroController {
 
             publishMessage(messageLabel, "시작 요청이 처리되었다.");
         } catch (RuntimeException ex) {
-            // 역할: UI에서는 예외를 터뜨리지 않고, 사용자에게 메시지로 전달한다.
             publishMessage(messageLabel, "시작 실패: " + ex.getMessage());
             refresh(statusLabel, messageLabel, pauseResumeButton);
         }
@@ -52,6 +66,8 @@ public final class MacroController {
 
     public void stop(Label statusLabel, Label messageLabel, Button pauseResumeButton) {
         try {
+            DebugLog.log("UI_BTN", () -> "click Stop");
+
             macroService.stop();
             refresh(statusLabel, messageLabel, pauseResumeButton);
 
@@ -67,8 +83,9 @@ public final class MacroController {
      */
     public void togglePauseResume(Label statusLabel, Label messageLabel, Button pauseResumeButton) {
         try {
-            MacroStatus status = macroService.status();
+            DebugLog.log("UI_BTN", () -> "click Pause/Resume text=" + pauseResumeButton.getText());
 
+            MacroStatus status = macroService.status();
             if (status == MacroStatus.RUNNING) {
                 macroService.pause();
                 publishMessage(messageLabel, "일시정지 요청이 처리되었다.");
@@ -78,7 +95,6 @@ public final class MacroController {
             } else {
                 publishMessage(messageLabel, "현재 상태에서는 일시정지/재개가 불가하다: " + status);
             }
-
             refresh(statusLabel, messageLabel, pauseResumeButton);
         } catch (RuntimeException ex) {
             publishMessage(messageLabel, "일시정지/재개 실패: " + ex.getMessage());
@@ -86,13 +102,39 @@ public final class MacroController {
         }
     }
 
+    /**
+     * 좌표 캡처를 시작한다.
+     *
+     * <p>역할:</p>
+     * <ul>
+     *   <li>사용자에게 “클릭 대기/ESC 취소” 안내 메시지를 보여준다.</li>
+     *   <li>캡처 완료 시 좌표 라벨을 갱신하고 이후 Start 요청에 반영한다.</li>
+     * </ul>
+     */
+    public void capturePoint(Label messageLabel, Label pointLabel) {
+        DebugLog.log("UI_BTN", () -> "click Capture");
+        publishMessage(messageLabel, "좌표 캡처 대기 중... 화면에서 클릭하세요. (ESC: 취소)");
+
+        clickCaptor.captureNextClick(Duration.ofSeconds(15))
+                .thenAccept(result -> Platform.runLater(() -> applyCaptureResult(result, messageLabel, pointLabel)));
+    }
+
+    /**
+     * ESC 입력 처리(캡처 취소).
+     */
+    public void onEscapePressed(Label messageLabel) {
+        DebugLog.log("UI_KEY", () -> "press ESC");
+        clickCaptor.cancel();
+        publishMessage(messageLabel, "좌표 캡처 취소 요청이 처리되었다.");
+    }
+
     public void refresh(Label statusLabel, Label messageLabel, Button pauseResumeButton) {
         MacroStatus status = macroService.status();
-
         statusLabel.setText(String.valueOf(status));
 
-        // 역할: 메시지 null 금지 규칙을 공통 정책으로만 보정한다.
-        ensureMessageLabelInitialized(messageLabel);
+        if (messageLabel.getText() == null) {
+            messageLabel.setText("");
+        }
 
         // 역할: RUNNING/PAUSED 상태에서만 토글 버튼을 활성화한다.
         boolean toggleEnabled = (status == MacroStatus.RUNNING || status == MacroStatus.PAUSED);
@@ -102,67 +144,42 @@ public final class MacroController {
         pauseResumeButton.setText(status == MacroStatus.PAUSED ? "Resume" : "Pause");
     }
 
-    /**
-     * UI 메시지를 화면과 로그에 동시에 반영한다.
-     *
-     * <p><b>역할:</b></p>
-     * <ul>
-     *   <li>메시지 반영 정책을 한 곳으로 모아 중복을 제거한다.</li>
-     *   <li>디버그 모드일 때만 콘솔 로그로도 관찰 가능하게 한다.</li>
-     * </ul>
-     */
-    private void publishMessage(Label messageLabel, String message) {
-        String normalized = normalizeMessage(message);
-        messageLabel.setText(normalized);
-
-        // 역할: 사용자에게 보여준 메시지는 디버그 모드에서 동일하게 콘솔에도 남긴다.
-        DebugLog.log("UI_MSG", () -> normalized);
-    }
-
-    /**
-     * UI 메시지의 null을 금지하기 위한 정규화 로직.
-     *
-     * <p><b>역할:</b></></p>
-     * <ul>
-     *     <li>UI Label에 null이 설정되지 않도록 방지한다.</li>
-     *     <li>메시지 정책을 한 곳으로 모아, refresh/publishMessage 모두 동일 규칙을 따르게 한다.</li>
-     * </ul>
-     */
-    private String normalizeMessage(String message) {
-        return message == null ? "" : message;
-    }
-
-    /**
-     * refresh에서 사용되는 메시지 Label 기본값 보정.
-     *
-     * <p><b>역할:</b></p>
-     * <ul>
-     *     <li>refresh는 "상태 반영"만 책임지고, 메시지 정책은 공통 규칙으로만 보정한다.</li>
-     *     <li>불필요한 디버그 로그를 만들지 않기 위해 publishMessage를 사용하지 않는다.</li>
-     * </ul>
-     */
-    private void ensureMessageLabelInitialized(Label messageLabel) {
-        if (messageLabel.getText() == null) {
-            messageLabel.setText("");
+    private void applyCaptureResult(CaptureResult<ScreenPoint> result, Label messageLabel, Label pointLabel) {
+        switch (result.status()) {
+            case CAPTURED -> {
+                ScreenPoint point = result.value().orElseThrow();
+                selectedPoint = point;
+                pointLabel.setText("좌표: (" + point.x() + ", " + point.y() + ")");
+                publishMessage(messageLabel, "좌표가 저장되었습니다: (" + point.x() + ", " + point.y() + ")");
+            }
+            case CANCELLED -> publishMessage(messageLabel, "좌표 캡처가 취소되었다.");
+            case TIMEOUT -> publishMessage(messageLabel, "좌표 캡처 시간이 초과되었다.");
+            case FAILED -> publishMessage(messageLabel, "좌표 캡처 실패: " + result.reason().orElse("원인 불명"));
         }
     }
 
+    private void publishMessage(Label messageLabel, String message) {
+        messageLabel.setText(message);
+        DebugLog.log("UI_MSG", () -> message);
+    }
+
     private MacroRequest defaultRequest() {
-        MacroPoint point = new MacroPoint("default", new ScreenPoint(300, 300), new ExactPositionPolicy());
+        ScreenPoint point = (selectedPoint != null) ? selectedPoint : new ScreenPoint(300, 300);
+        MacroPoint macroPoint = new MacroPoint("default", point, new ExactPositionPolicy());
 
         // 역할: UI 입력폼 도입 전까지는 최소 동작(단발 좌클릭)을 기본값으로 둔다.
         ClickAction action = ClickAction.singleLeft();
 
-        // 역할: 기본 딜레이는 고정 300ms로 둔다. (UI 입력폼 도입 전 임시 기본값)
+        // 역할: 기본 딜레이는 고정 300ms로 둔다.
         DelayPolicy delayPolicy = new DelayPolicy(300, 0, 0);
 
-        ClickPositionPolicy positionPolicy = point.positionPolicy();
+        ClickPositionPolicy positionPolicy = macroPoint.positionPolicy();
 
         // 역할: 스케줄은 UI 입력이 생기기 전까지 "항상 허용"으로 둔다.
         ExecutionSchedule schedule = new ExecutionSchedule.Always();
 
         return new MacroRequest(
-                point,
+                macroPoint,
                 action,
                 positionPolicy,
                 delayPolicy,
