@@ -1,8 +1,8 @@
 package com.preview.mousemacroapp;
 
-import com.preview.mousemacroapp.infra.hook.AwtRobotMouse;
-import com.preview.mousemacroapp.infra.hook.DryRunClickExecutor;
-import com.preview.mousemacroapp.infra.hook.RobotClickExecutor;
+import com.preview.mousemacroapp.debug.DebugLog;
+import com.preview.mousemacroapp.debug.DebugMode;
+import com.preview.mousemacroapp.infra.hook.*;
 import com.preview.mousemacroapp.service.ClickExecutor;
 import com.preview.mousemacroapp.service.DefaultMacroService;
 import com.preview.mousemacroapp.service.MacroService;
@@ -11,6 +11,7 @@ import javafx.application.Application;
 import javafx.stage.Stage;
 
 import java.time.Clock;
+import java.util.Arrays;
 
 /**
  * 애플리케이션 진입점.
@@ -29,16 +30,30 @@ public class Main extends Application {
      */
     private static final boolean DRY_RUN = true;
 
+    private GlobalKeyHook globalKeyHook;
+
     @Override
     public void start(Stage primaryStage) {
         ClickExecutor clickExecutor = buildClickExecutor();
         MacroService macroService = new DefaultMacroService(clickExecutor);
+
+        // 디버그 모드에서만 전역 키 입력 훅을 시작한다.
+        globalKeyHook = new GlobalKeyHook(new JNativeHookFacade.Default());
+        globalKeyHook.startIfDebugEnabled();
 
         MainWindow mainWindow = new MainWindow(macroService);
 
         primaryStage.setTitle("Mouse Macro App");
         primaryStage.setScene(mainWindow.scene());
         primaryStage.show();
+    }
+
+    @Override
+    public void stop() {
+        // 역할: 전역 훅은 등록/해제를 수명주기에 맞춰 반드시 정리한다.
+        if (globalKeyHook != null) {
+            globalKeyHook.stopIfStarted();
+        }
     }
 
     private ClickExecutor buildClickExecutor() {
@@ -51,6 +66,8 @@ public class Main extends Application {
     }
 
     public static void main(String[] args) {
+        DebugMode.initialize(args);
+        DebugLog.log(() -> "mode=" + (DebugMode.isEnabled() ? "ON" : "OFF") + " args=" + Arrays.toString(args));
         launch(args);
     }
 }

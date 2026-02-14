@@ -1,10 +1,12 @@
 package com.preview.mousemacroapp.ui;
 
+import com.preview.mousemacroapp.debug.DebugLog;
 import com.preview.mousemacroapp.service.MacroService;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
@@ -33,18 +35,27 @@ public final class MainWindow {
         Label messageLabel = new Label();
 
         Button startButton = new Button("Start");
-        Button stopButton = new Button("Stop");
         Button pauseResumeButton = new Button("Pause");
+        Button stopButton = new Button("Stop");
 
         /*
          * 역할: UI 이벤트를 Controller에 위임한다.
          * - Pause/Resume는 하나의 토글 버튼으로 운용한다.
          */
-        startButton.setOnAction(e -> controller.start(statusLabel, messageLabel, pauseResumeButton));
-        stopButton.setOnAction(e -> controller.stop(statusLabel, messageLabel, pauseResumeButton));
-        pauseResumeButton.setOnAction(e -> controller.togglePauseResume(statusLabel, messageLabel, pauseResumeButton));
+        startButton.setOnAction(e -> {
+            DebugLog.log("UI_BTN", () -> "click Start");
+            controller.start(statusLabel, messageLabel, pauseResumeButton);
+        });
+        pauseResumeButton.setOnAction(e -> {
+            DebugLog.log("UI_BTN", () -> "click Pause/Resume text=" + pauseResumeButton.getText());
+            controller.togglePauseResume(statusLabel, messageLabel, pauseResumeButton);
+        });
+        stopButton.setOnAction(e -> {
+            DebugLog.log("UI_BTN", () -> "click Stop");
+            controller.stop(statusLabel, messageLabel, pauseResumeButton);
+        });
 
-        HBox buttons = new HBox(8, startButton, stopButton, pauseResumeButton);
+        HBox buttons = new HBox(8, startButton, pauseResumeButton, stopButton);
 
         VBox root = new VBox(10,
                 new Label("Status:"),
@@ -59,6 +70,17 @@ public final class MainWindow {
         controller.refresh(statusLabel, messageLabel, pauseResumeButton);
 
         this.scene = new Scene(root, 520, 220);
+
+        this.scene.addEventFilter(KeyEvent.KEY_PRESSED, e ->
+                DebugLog.log("UI_KEY", () ->
+                        "pressed code=" + e.getCode()
+                                + " typed char=" + e.getCharacter()
+                                + " text=" + e.getText()
+                                + " ctrl=" + e.isControlDown()
+                                + " alt=" + e.isAltDown()
+                                + " shift=" + e.isShiftDown()
+                )
+        );
     }
 
     public Scene scene() {
