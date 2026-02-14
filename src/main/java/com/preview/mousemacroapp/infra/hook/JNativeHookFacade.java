@@ -3,6 +3,7 @@ package com.preview.mousemacroapp.infra.hook;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
+import com.github.kwhat.jnativehook.mouse.NativeMouseListener;
 
 import java.util.Objects;
 import java.util.logging.Level;
@@ -11,9 +12,11 @@ import java.util.logging.Logger;
 /**
  * JNativeHook(GlobalScreen) 접근을 감싼 파사드.
  *
- * <p>역할:</p>
- * - 전역 훅 등록/해제 및 리스너 연결을 단일 책임으로 통제한다.
- * - 외부 라이브러리 의존을 경계로 고정하여, 상위 계층(서비스/UI)에 누수되지 않게 한다.
+ * <p><b>역할:</b></p>
+ * <ul>
+ *     <li>전역 훅 등록/해제 및 리스너 연결을 단일 책임으로 통제한다.</li>
+ *     <li>외부 라이브러리 의존을 경계로 고정하여, 상위 계층(서비스/UI)에 누수되지 않게 한다.</li>
+ * </ul>
  */
 public interface JNativeHookFacade {
 
@@ -24,6 +27,10 @@ public interface JNativeHookFacade {
     void addKeyListener(NativeKeyListener listener);
 
     void removeKeyListener(NativeKeyListener listener);
+
+    void addMouseListener(NativeMouseListener listener);
+
+    void removeMouseListener(NativeMouseListener listener);
 
     boolean isRegistered();
 
@@ -69,6 +76,18 @@ public interface JNativeHookFacade {
         public void removeKeyListener(NativeKeyListener listener) {
             Objects.requireNonNull(listener, "listener");
             GlobalScreen.removeNativeKeyListener(listener);
+        }
+
+        @Override
+        public void addMouseListener(NativeMouseListener listener) {
+            Objects.requireNonNull(listener, "listener");
+            GlobalScreen.addNativeMouseListener(listener);
+        }
+
+        @Override
+        public void removeMouseListener(NativeMouseListener listener) {
+            Objects.requireNonNull(listener, "listener");
+            GlobalScreen.removeNativeMouseListener(listener);
         }
 
         @Override
