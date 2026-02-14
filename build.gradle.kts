@@ -30,6 +30,10 @@ javafx {
 }
 
 dependencies {
+    // 디버그 모드에서 전역 키 입력을 관찰하기 위한 글로벌 훅 라이브러리
+    // Maven Central 기준 2.2.2 버전 사용. :contentReference[oaicite:0]{index=0}
+    implementation("com.github.kwhat:jnativehook:2.2.2")
+
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -41,6 +45,10 @@ tasks.test {
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
+}
+
+tasks.withType<JavaExec>().configureEach {
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8", "-Dsun.stderr.encoding=UTF-8")
 }
 
 tasks.withType<Javadoc>().configureEach {
