@@ -16,6 +16,7 @@ import com.preview.mousemacroapp.service.MouseClickCaptor;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 
 import java.time.Duration;
 import java.util.Random;
@@ -30,6 +31,7 @@ import java.util.Random;
  *   <li>UI 계층에서 예외를 사용자 메시지로 정리한다.</li>
  *   <li>상태 표시/버튼 활성화 등 화면 갱신 규칙을 일원화한다.</li>
  *   <li>좌표 캡처 결과를 UI에 반영하고, Start 요청에 사용한다.</li>
+ *   <li>반복 횟수 입력을 파싱하여 실행 요청에 반영한다(0=무한).</li>
  * </ul>
  */
 public final class MacroController {
@@ -47,12 +49,23 @@ public final class MacroController {
         this.clickCaptor = clickCaptor;
     }
 
-    public void start(Label statusLabel, Label messageLabel, Button pauseResumeButton, Label pointLabel) {
+    public void start(Label statusLabel,
+                      Label messageLabel,
+                      Button pauseResumeButton,
+                      Label pointLabel,
+                      TextField repeatCountField) {
         try {
             DebugLog.log("UI_BTN", () -> "click Start");
 
-            // 역할: 최소 실행 요청을 생성한다. (UI 입력폼 도입 전 기본값 + 선택 좌표 반영)
-            MacroRequest request = defaultRequest();
+            int repeatCount = parseRepeatCount(repeatCountField, messageLabel);
+            if (repeatCount < 0) {
+                // 역할: 파싱/검증 실패 시 서비스 호출을 중단한다.
+                refresh(statusLabel, messageLabel, pauseResumeButton);
+                return;
+            }
+
+            // 역할: 최소 실행 요청을 생성한다. (UI 입력폼 도입 전 기본값 + 선택 좌표 + 반복 횟수 반영)
+            MacroRequest request = defaultRequest(repeatCount);
 
             macroService.start(request);
             refresh(statusLabel, messageLabel, pauseResumeButton);
@@ -163,7 +176,38 @@ public final class MacroController {
         DebugLog.log("UI_MSG", () -> message);
     }
 
-    private MacroRequest defaultRequest() {
+    /**
+     * 반복 횟수를 파싱한다.
+     *
+     * <p>정책:</p>
+     * <ul>
+     *   <li>빈 값은 0(무한)으로 간주한다.</li>
+     *   <li>숫자가 아니면 오류 메시지를 출력하고 -1을 반환한다.</li>
+     *   <li>음수면 오류 메시지를 출력하고 -1을 반환한다.</li>
+     * </ul>
+     */
+    private int parseRepeatCount(TextField repeatCountField, Label messageLabel) {
+        String raw = (repeatCountField != null) ? repeatCountField.getText() : null;
+        String trimmed = (raw == null) ? "" : raw.trim();
+
+        if (trimmed.isEmpty()) {
+            return 0;
+        }
+
+        try {
+            int value = Integer.parseInt(trimmed);
+            if (value < 0) {
+                publishMessage(messageLabel, "반복 횟수는 0 이상이어야 한다.");
+                return -1;
+            }
+            return value;
+        } catch (NumberFormatException ex) {
+            publishMessage(messageLabel, "반복 횟수는 숫자여야 한다.");
+            return -1;
+        }
+    }
+
+    private MacroRequest defaultRequest(int repeatCount) {
         ScreenPoint point = (selectedPoint != null) ? selectedPoint : new ScreenPoint(300, 300);
         MacroPoint macroPoint = new MacroPoint("default", point, new ExactPositionPolicy());
 
@@ -184,7 +228,8 @@ public final class MacroController {
                 positionPolicy,
                 delayPolicy,
                 schedule,
-                new Random()
+                new Random(),
+                repeatCount
         );
     }
 }
