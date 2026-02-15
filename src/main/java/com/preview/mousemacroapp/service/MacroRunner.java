@@ -1,5 +1,6 @@
 package com.preview.mousemacroapp.service;
 
+import com.preview.mousemacroapp.debug.DebugLog;
 import com.preview.mousemacroapp.domain.action.ClickAction;
 import com.preview.mousemacroapp.domain.action.policy.ClickPositionPolicy;
 import com.preview.mousemacroapp.domain.point.MacroPoint;
@@ -42,7 +43,9 @@ final class MacroRunner {
                ClickPositionPolicy positionPolicy,
                DelayPolicy delayPolicy,
                ExecutionSchedule schedule,
-               Random random) {
+               Random random,
+               int repeatCount,
+               Runnable onCompleted) {
 
         Objects.requireNonNull(macroPoint, "macroPoint");
         Objects.requireNonNull(clickAction, "clickAction");
@@ -50,13 +53,25 @@ final class MacroRunner {
         Objects.requireNonNull(delayPolicy, "delayPolicy");
         Objects.requireNonNull(schedule, "schedule");
         Objects.requireNonNull(random, "random");
+        Objects.requireNonNull(onCompleted, "onCompleted");
+
+        if (repeatCount < 0) {
+            throw new IllegalArgumentException("repeatCount는 0 이상이어야 한다. repeatCount=" + repeatCount);
+        }
 
         stopRequested = false;
         paused = false;
 
         // 역할: 실행 스레드 생명주기는 Runner 내부에서만 생성/시작한다(외부 직접 제어 금지).
-        worker = new Thread(() -> runLoop(macroPoint, clickAction, positionPolicy, delayPolicy, schedule, random),
-                "macro-runner");
+        worker = new Thread(() -> {
+            try {
+                runLoop(macroPoint, clickAction, positionPolicy, delayPolicy, schedule, random, repeatCount);
+            } finally {
+                // 역할: 정상 종료/stop 요청/예외 종료 모두 “종료 완료”를 Service에 알린다.
+                onCompleted.run();
+            }
+        }, "macro-runner");
+
         // 역할: UI 종료 시 백그라운드 스레드가 프로세스 종료를 막지 않도록 daemon 처리한다.
         worker.setDaemon(true);
 
@@ -90,9 +105,13 @@ final class MacroRunner {
                          ClickPositionPolicy positionPolicy,
                          DelayPolicy delayPolicy,
                          ExecutionSchedule schedule,
-                         Random random) {
+                         Random random,
+                         int repeatCount) {
 
         ScreenPoint base = macroPoint.base();
+
+        int executed = 0;
+        DebugLog.log("RUNNER", () -> "run start repeat=" + repeatCount);
 
         // 역할: stopRequested는 루프 종료 여부를 판단하는 단일 플래그다.
         while (!stopRequested) {
@@ -111,6 +130,17 @@ final class MacroRunner {
 
             ScreenPoint resolved = positionPolicy.resolve(base, random);
             clickExecutor.execute(clickAction, resolved);
+
+            executed++;
+            if (repeatCount > 0) {
+                final int current = executed;   // ← 이 줄 추가
+                DebugLog.log("RUNNER", () -> "tick=" + current + "/" + repeatCount);
+
+                if (current >= repeatCount) {
+                    DebugLog.log("RUNNER", () -> "finished -> stop");
+                    break;
+                }
+            }
 
             long delayMillis = delayPolicy.resolveDelayMillis(random);
             sleepSilently(delayMillis);

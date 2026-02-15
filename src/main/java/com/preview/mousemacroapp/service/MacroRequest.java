@@ -28,6 +28,7 @@ import java.util.Random;
  * @param delayPolicy    클릭 간격 정책(When)
  * @param schedule       실행 가능 시간 정책(미지정 시 Always)
  * @param random         랜덤 소스(재현 가능한 테스트/디버그를 위해 외부 주입)
+ * @param repeatCount    반복 횟수(0=무한, 1 이상=해당 횟수만 실행)
  * @since 0.6
  */
 public record MacroRequest(
@@ -36,13 +37,15 @@ public record MacroRequest(
         ClickPositionPolicy positionPolicy,
         DelayPolicy delayPolicy,
         ExecutionSchedule schedule,
-        Random random
+        Random random,
+        int repeatCount
 ) {
 
     /**
-     * 요청 불변식(Null 금지)을 강제한다.
+     * 요청 불변식(Null 금지 및 반복 횟수 정책)을 강제한다.
      *
-     * @throws NullPointerException 필드 중 하나라도 null인 경우
+     * @throws NullPointerException     필드 중 하나라도 null인 경우
+     * @throws IllegalArgumentException repeatCount가 음수인 경우
      * @since 0.6
      */
     public MacroRequest {
@@ -52,6 +55,11 @@ public record MacroRequest(
         Objects.requireNonNull(delayPolicy, "delayPolicy");
         Objects.requireNonNull(schedule, "schedule");
         Objects.requireNonNull(random, "random");
+
+        // 역할: 0=무한, 1 이상=제한 반복. 음수는 UI/외부 입력 오류로 간주하여 거부한다.
+        if (repeatCount < 0) {
+            throw new IllegalArgumentException("repeatCount는 0 이상이어야 한다. repeatCount=" + repeatCount);
+        }
     }
 
     /**
@@ -63,8 +71,10 @@ public record MacroRequest(
      * @param delayPolicy    클릭 간격 정책(When)
      * @param scheduleOrNull 스케줄(없으면 null)
      * @param random         랜덤 소스
+     * @param repeatCount    반복 횟수(0=무한)
      * @return 실행 요청
-     * @throws NullPointerException macroPoint/clickAction/positionPolicy/delayPolicy/random이 null인 경우
+     * @throws NullPointerException     macroPoint/clickAction/positionPolicy/delayPolicy/random이 null인 경우
+     * @throws IllegalArgumentException repeatCount가 음수인 경우
      * @since 0.6
      */
     public static MacroRequest of(
@@ -73,7 +83,8 @@ public record MacroRequest(
             ClickPositionPolicy positionPolicy,
             DelayPolicy delayPolicy,
             ExecutionSchedule scheduleOrNull,
-            Random random
+            Random random,
+            int repeatCount
     ) {
         Objects.requireNonNull(macroPoint, "macroPoint");
         Objects.requireNonNull(clickAction, "clickAction");
@@ -89,7 +100,8 @@ public record MacroRequest(
                 positionPolicy,
                 delayPolicy,
                 schedule,
-                random
+                random,
+                repeatCount
         );
     }
 }

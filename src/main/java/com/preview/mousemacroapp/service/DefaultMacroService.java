@@ -74,10 +74,19 @@ public final class DefaultMacroService implements MacroService {
                     request.positionPolicy(),
                     request.delayPolicy(),
                     request.schedule(),
-                    request.random()
+                    request.random(),
+                    request.repeatCount(),
+                    this::onRunnerCompleted
             );
 
             status = MacroStatus.RUNNING;
+        }
+    }
+
+    private void onRunnerCompleted() {
+        synchronized (lock) {
+            // 역할: 제한 반복 종료/스레드 종료 시 STOPPED로 수렴(멱등)
+            status = MacroStatus.STOPPED;
         }
     }
 
