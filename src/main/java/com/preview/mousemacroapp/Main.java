@@ -14,6 +14,7 @@ import com.preview.mousemacroapp.service.MacroService;
 import com.preview.mousemacroapp.service.MouseClickCaptor;
 import com.preview.mousemacroapp.ui.MainWindow;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.stage.Stage;
 
 import java.time.Clock;
@@ -62,7 +63,25 @@ public class Main extends Application {
         primaryStage.show();
 
         // 역할: 앱 종료 시 디버그 훅이 살아있다면 정리한다.
-        primaryStage.setOnCloseRequest(e -> globalKeyHook.stopIfStarted());
+        // 역할: 창 닫기 = 앱 종료로 간주하고, 실행/훅/JavaFX 종료 순서로 정리한다.
+        // - JNativeHook 등 외부 라이브러리의 non-daemon 스레드가 남으면 Gradle run이 종료되지 않을 수 있다.
+        // - 최후에는 System.exit(0)로 프로세스를 확실히 종료한다.
+        primaryStage.setOnCloseRequest(e -> {
+            try {
+                macroService.stop();
+            } catch (RuntimeException ignored) {
+                // 역할: 종료 시점 stop 실패로 앱 종료가 막히지 않도록 방어한다.
+            }
+
+            try {
+                globalKeyHook.stopIfStarted();
+            } catch (RuntimeException ignored) {
+                // 역할: 디버그 훅 정리 실패로 앱 종료가 막히지 않도록 방어한다.
+            }
+
+            Platform.exit();
+            System.exit(0);
+        });
     }
 
     private ClickExecutor buildClickExecutor() {

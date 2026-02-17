@@ -39,6 +39,32 @@ public final class MainWindow {
         TextField repeatCountField = new TextField("0");
         repeatCountField.setPrefColumnCount(6);
 
+        TextField baseIntervalMillisField = new TextField("300");
+        baseIntervalMillisField.setPrefColumnCount(6);
+        baseIntervalMillisField.setPromptText("예: 300");
+
+        TextField minRandomMillisField = new TextField("0");
+        minRandomMillisField.setPrefColumnCount(6);
+        minRandomMillisField.setPromptText("예: 0");
+
+        TextField maxRandomMillisField = new TextField("0");
+        maxRandomMillisField.setPrefColumnCount(6);
+        maxRandomMillisField.setPromptText("예: 50");
+
+        /*
+         * 역할: Delay 입력 필드 3개를 컨트롤러에 연결한다.
+         * - Start 시점에 UI 입력값을 읽어 DelayPolicy를 구성한다.
+         * - MainWindow는 “생성/배치”만 담당하고, 검증/정책은 Controller/Parser가 담당한다.
+         */
+        controller.attachDelayFields(baseIntervalMillisField, minRandomMillisField, maxRandomMillisField);
+
+        HBox delayRow = new HBox(
+                8,
+                new Label("기본(ms):"), baseIntervalMillisField,
+                new Label("랜덤 최소(ms):"), minRandomMillisField,
+                new Label("랜덤 최대(ms):"), maxRandomMillisField
+        );
+
         Button captureButton = new Button("좌표 캡처");
         Button startButton = new Button("Start");
         Button pauseResumeButton = new Button("Pause");
@@ -59,7 +85,7 @@ public final class MainWindow {
 
         HBox repeatRow = new HBox(8, new Label("반복(0=무한):"), repeatCountField);
 
-        Parent root = buildRoot(statusLabel, messageLabel, pointLabel, repeatRow, buttons);
+        Parent root = buildRoot(statusLabel, messageLabel, pointLabel, delayRow, repeatRow, buttons);
 
         Scene created = new Scene(root, 520, 280);
 
@@ -79,6 +105,7 @@ public final class MainWindow {
     private Parent buildRoot(Label statusLabel,
                              Label messageLabel,
                              Label pointLabel,
+                             HBox delayRow,
                              HBox repeatRow,
                              HBox buttons) {
         VBox root = new VBox(
@@ -88,6 +115,7 @@ public final class MainWindow {
                 new Label("Point:"),
                 pointLabel,
                 repeatRow,
+                delayRow,
                 buttons,
                 new Label("Message:"),
                 messageLabel
@@ -95,6 +123,7 @@ public final class MainWindow {
         root.setPadding(new Insets(12));
         return root;
     }
+
 
     public Scene scene() {
         return scene;

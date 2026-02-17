@@ -25,7 +25,7 @@ public final class DebugMode {
      */
     public static void initialize(String[] args) {
         Objects.requireNonNull(args, "args");
-        enabled = Arrays.stream(args).anyMatch("-debug"::equals);
+        enabled = Arrays.stream(args).anyMatch(a -> "-debug".equals(a) || "--debug".equals(a));
     }
 
     /**

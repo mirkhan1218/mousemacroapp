@@ -33,7 +33,6 @@ public final class DebugLog {
     }
 
     public static void log(Supplier<String> messageSupplier) {
-        Objects.requireNonNull(messageSupplier);
         if (!DebugMode.isEnabled()) {
             return;
         }
@@ -42,12 +41,11 @@ public final class DebugLog {
     }
 
     public static void log(String category, Supplier<String> messageSupplier) {
-        Objects.requireNonNull(category);
-        Objects.requireNonNull(messageSupplier);
         if (!DebugMode.isEnabled()) {
             return;
         }
 
-        System.out.println("[DEBUG][" + category + "] " + now() + " " + messageSupplier.get());
+        String message = messageSupplier.get();
+        System.out.printf("[DEBUG][%s] " + now() + " %s%n", category, message);
     }
 }

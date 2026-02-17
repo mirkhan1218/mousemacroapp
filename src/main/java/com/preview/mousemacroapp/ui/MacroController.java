@@ -39,6 +39,11 @@ public final class MacroController {
     private final MacroService macroService;
     private final MouseClickCaptor clickCaptor;
 
+    // Delay UI 필드(연결되지 않으면 null)
+    private volatile TextField baseIntervalMillisField;
+    private volatile TextField minRandomMillisField;
+    private volatile TextField maxRandomMillisField;
+
     /**
      * 마지막으로 확정된 좌표(없으면 null).
      */
@@ -64,8 +69,16 @@ public final class MacroController {
                 return;
             }
 
+            // DelayPolicy UI 입력 파싱(연결된 경우만)
+            DelayPolicy delayPolicy = resolveDelayPolicyFromUi(messageLabel);
+            if (delayPolicy == null) {
+                // 역할: 딜레이 입력 오류 시 서비스 호출을 중단한다.
+                refresh(statusLabel, messageLabel, pauseResumeButton);
+                return;
+            }
+
             // 역할: 최소 실행 요청을 생성한다. (UI 입력폼 도입 전 기본값 + 선택 좌표 + 반복 횟수 반영)
-            MacroRequest request = defaultRequest(repeatCount);
+            MacroRequest request = defaultRequest(repeatCount, delayPolicy);
 
             macroService.start(request);
             refresh(statusLabel, messageLabel, pauseResumeButton);
@@ -207,19 +220,34 @@ public final class MacroController {
         }
     }
 
-    private MacroRequest defaultRequest(int repeatCount) {
+    /**
+     * Delay 입력 필드를 컨트롤러에 연결한다.
+     *
+     * <p>
+     * 역할: UI 구성(MainWindow)에서 생성한 필드 레퍼런스를 주입받아,
+     * Start 시점에 입력값을 읽어 DelayPolicy를 구성한다.
+     * </p>
+     *
+     * @param baseIntervalMillisField 기본 간격(ms)
+     * @param minRandomMillisField    랜덤 최소(ms)
+     * @param maxRandomMillisField    랜덤 최대(ms)
+     */
+    public void attachDelayFields(TextField baseIntervalMillisField,
+                                  TextField minRandomMillisField,
+                                  TextField maxRandomMillisField) {
+        this.baseIntervalMillisField = baseIntervalMillisField;
+        this.minRandomMillisField = minRandomMillisField;
+        this.maxRandomMillisField = maxRandomMillisField;
+    }
+
+
+    // delayPolicy를 외부에서 주입받도록 변경
+    private MacroRequest defaultRequest(int repeatCount, DelayPolicy delayPolicy) {
         ScreenPoint point = (selectedPoint != null) ? selectedPoint : new ScreenPoint(300, 300);
         MacroPoint macroPoint = new MacroPoint("default", point, new ExactPositionPolicy());
 
-        // 역할: UI 입력폼 도입 전까지는 최소 동작(단발 좌클릭)을 기본값으로 둔다.
         ClickAction action = ClickAction.singleLeft();
-
-        // 역할: 기본 딜레이는 고정 300ms로 둔다.
-        DelayPolicy delayPolicy = new DelayPolicy(300, 0, 0);
-
         ClickPositionPolicy positionPolicy = macroPoint.positionPolicy();
-
-        // 역할: 스케줄은 UI 입력이 생기기 전까지 "항상 허용"으로 둔다.
         ExecutionSchedule schedule = new ExecutionSchedule.Always();
 
         return new MacroRequest(
@@ -231,5 +259,28 @@ public final class MacroController {
                 new Random(),
                 repeatCount
         );
+    }
+
+    // UI 필드 기반 DelayPolicy 구성(없으면 기본값)
+    private DelayPolicy resolveDelayPolicyFromUi(Label messageLabel) {
+        TextField baseField = this.baseIntervalMillisField;
+        TextField minField = this.minRandomMillisField;
+        TextField maxField = this.maxRandomMillisField;
+
+        // 역할: UI가 아직 연결되지 않았다면 기존 기본값을 유지한다.
+        if (baseField == null && minField == null && maxField == null) {
+            return new DelayPolicy(300, 0, 0);
+        }
+
+        String base = (baseField != null) ? baseField.getText() : null;
+        String min = (minField != null) ? minField.getText() : null;
+        String max = (maxField != null) ? maxField.getText() : null;
+
+        UiParseResult<DelayPolicy> parsed = DelayPolicyInputParser.parse(base, min, max);
+        if (!parsed.isOk()) {
+            publishMessage(messageLabel, parsed.errorMessage().orElse("딜레이 입력이 올바르지 않다."));
+            return null;
+        }
+        return parsed.value().orElseThrow();
     }
 }
